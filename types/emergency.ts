@@ -25,11 +25,6 @@ export interface EmergencyResponse {
   nextUpdate?: string;
   error?: string;
   cacheSource?: string;
-  debug?: {
-    timeSinceLastFetch: number;
-    cacheDuration: number;
-    environment: string;
-  };
 }
 
 export interface StatItem {

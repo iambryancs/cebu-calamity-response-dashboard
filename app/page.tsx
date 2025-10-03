@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyResponse['data'][0] | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
-  const [cacheInfo, setCacheInfo] = useState<{cached?: boolean, stale?: boolean, lastUpdated?: string, nextUpdate?: string, cacheSource?: string, debug?: any} | null>(null);
+  const [cacheInfo, setCacheInfo] = useState<{cached?: boolean, stale?: boolean, lastUpdated?: string, nextUpdate?: string, cacheSource?: string} | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 100;
 
@@ -39,9 +39,6 @@ export default function Dashboard() {
       if (vercelCacheStatus === 'HIT') {
         emergencyData.cached = true;
         emergencyData.cacheSource = 'cdn';
-        if (emergencyData.debug) {
-          emergencyData.debug.environment = 'production';
-        }
       }
       
       if (!emergencyData.success || !emergencyData.data) {
@@ -57,7 +54,6 @@ export default function Dashboard() {
         lastUpdated: emergencyData.lastUpdated,
         nextUpdate: emergencyData.nextUpdate,
         cacheSource: emergencyData.cacheSource,
-        debug: emergencyData.debug
       });
       
       // Track data refresh
@@ -847,20 +843,6 @@ export default function Dashboard() {
                         {new Date(cacheInfo.nextUpdate).toLocaleString()}
                       </span>
                     </p>
-                  )}
-                  {cacheInfo && (
-                    <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                      <p><strong>Debug Info:</strong></p>
-                      <p>Cache Source: {cacheInfo.cacheSource || 'unknown'}</p>
-                      <p>Cached: {cacheInfo.cached ? 'Yes' : 'No'}</p>
-                      {cacheInfo.debug && (
-                        <>
-                          <p>Environment: {cacheInfo.debug.environment || 'unknown'}</p>
-                          <p>Time since last fetch: {cacheInfo.debug.timeSinceLastFetch || 'unknown'}s</p>
-                          <p>Cache duration: {cacheInfo.debug.cacheDuration || 'unknown'}s</p>
-                        </>
-                      )}
-                    </div>
                   )}
                 </div>
               </div>

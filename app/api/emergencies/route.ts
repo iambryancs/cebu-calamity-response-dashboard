@@ -154,18 +154,12 @@ export async function GET() {
       lastUpdated: new Date(lastFetchTime).toISOString(),
       nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
       cacheSource: 'memory',
-      debug: {
-        timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000),
-        cacheDuration: CACHE_DURATION / 1000,
-        environment: process.env.VERCEL ? 'production' : 'development'
-      }
     }, {
       headers: {
         'Cache-Control': 'public, max-age=180, s-maxage=180',
         'CDN-Cache-Control': 'max-age=180',
         'Vercel-CDN-Cache-Control': 'max-age=180',
         'X-Cache-Status': 'HIT',
-        'X-Debug-Info': 'memory-cached'
       }
     });
   }
@@ -216,11 +210,6 @@ export async function GET() {
       lastUpdated: new Date(lastFetchTime).toISOString(),
       nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
       cacheSource: 'blob-primary',
-      debug: {
-        timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000),
-        cacheDuration: CACHE_DURATION / 1000,
-        environment: process.env.VERCEL ? 'production' : 'development'
-      }
     }, {
       headers: {
         'Cache-Control': 'public, max-age=180, s-maxage=180',
@@ -269,7 +258,6 @@ export async function GET() {
           'CDN-Cache-Control': 'max-age=180',
           'Vercel-CDN-Cache-Control': 'max-age=180',
           'X-Cache-Status': 'MISS',
-          'X-Debug-Info': 'api-fallback'
         }
       });
 
