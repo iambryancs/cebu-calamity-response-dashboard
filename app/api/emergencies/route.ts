@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { EmergencyResponse } from '@/types/emergency';
 
-// In-memory cache for API responses
+// In-memory cache for API responses (works within the same function instance)
 let cachedData: EmergencyResponse | null = null;
 let lastFetchTime: number = 0;
 const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes in milliseconds
@@ -11,12 +11,19 @@ export async function GET() {
   
   // Check if we have cached data and it's still fresh (within 3 minutes)
   if (cachedData && (now - lastFetchTime) < CACHE_DURATION) {
-    console.log('Serving cached emergency data');
+    console.log('Serving cached emergency data from memory');
     return NextResponse.json({
       ...cachedData,
       cached: true,
       lastUpdated: new Date(lastFetchTime).toISOString(),
-      nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString()
+      nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
+      cacheSource: 'memory'
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=180, s-maxage=180',
+        'CDN-Cache-Control': 'max-age=180',
+        'Vercel-CDN-Cache-Control': 'max-age=180'
+      }
     });
   }
 
@@ -55,7 +62,14 @@ export async function GET() {
       ...data,
       cached: false,
       lastUpdated: new Date(lastFetchTime).toISOString(),
-      nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString()
+      nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
+      cacheSource: 'api'
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=180, s-maxage=180',
+        'CDN-Cache-Control': 'max-age=180',
+        'Vercel-CDN-Cache-Control': 'max-age=180'
+      }
     });
 
   } catch (error) {
@@ -69,7 +83,14 @@ export async function GET() {
         cached: true,
         stale: true,
         lastUpdated: new Date(lastFetchTime).toISOString(),
-        error: 'Using cached data due to API error'
+        error: 'Using cached data due to API error',
+        cacheSource: 'memory-stale'
+      }, {
+        headers: {
+          'Cache-Control': 'public, max-age=60, s-maxage=60',
+          'CDN-Cache-Control': 'max-age=60',
+          'Vercel-CDN-Cache-Control': 'max-age=60'
+        }
       });
     }
 

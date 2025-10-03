@@ -14,7 +14,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyResponse['data'][0] | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
-  const [cacheInfo, setCacheInfo] = useState<{cached?: boolean, stale?: boolean, lastUpdated?: string, nextUpdate?: string} | null>(null);
+  const [cacheInfo, setCacheInfo] = useState<{cached?: boolean, stale?: boolean, lastUpdated?: string, nextUpdate?: string, cacheSource?: string} | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 100;
 
@@ -362,7 +362,7 @@ export default function Dashboard() {
                     <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    Live data from API
+                    {cacheInfo?.cacheSource === 'memory' ? 'Cached data' : 'Live data from API'}
                   </>
                 )}
               </div>
