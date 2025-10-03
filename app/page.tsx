@@ -41,7 +41,9 @@ export default function Dashboard() {
         cached: emergencyData.cached,
         stale: emergencyData.stale,
         lastUpdated: emergencyData.lastUpdated,
-        nextUpdate: emergencyData.nextUpdate
+        nextUpdate: emergencyData.nextUpdate,
+        cacheSource: emergencyData.cacheSource,
+        debug: emergencyData.debug
       });
       setLoading(false);
     } catch (err) {
@@ -58,23 +60,6 @@ export default function Dashboard() {
     const avgPeople = totalPeople / totalEmergencies;
     const pendingCount = emergencyData.filter(item => item.status === 'pending').length;
 
-    // Debug: Log statistics to help identify outliers
-    console.log('Emergency Statistics Debug:');
-    console.log('Total emergencies:', totalEmergencies);
-    console.log('Total people:', totalPeople);
-    console.log('Average people per emergency:', avgPeople);
-    
-    // Find outliers (emergencies with more than 100 people)
-    const outliers = emergencyData.filter(item => (item.numberOfPeople || 0) > 100);
-    if (outliers.length > 0) {
-      console.log('High people count outliers (>100 people):', outliers.map(item => ({
-        id: item.id,
-        numberOfPeople: item.numberOfPeople,
-        placename: item.placename,
-        urgencyLevel: item.urgencyLevel
-      })));
-    }
-
     // Calculate median for more robust average
     const peopleCounts = emergencyData.map(item => item.numberOfPeople || 0).sort((a, b) => a - b);
     const median = peopleCounts.length % 2 === 0 
@@ -85,9 +70,6 @@ export default function Dashboard() {
     const filteredData = emergencyData.filter(item => (item.numberOfPeople || 0) <= 500);
     const filteredTotalPeople = filteredData.reduce((sum, item) => sum + (item.numberOfPeople || 0), 0);
     const filteredAvgPeople = filteredData.length > 0 ? filteredTotalPeople / filteredData.length : avgPeople;
-
-    console.log('Median people per emergency:', median);
-    console.log('Filtered average (excluding >500 people):', filteredAvgPeople);
 
     // Analyze needs
     const needsCount: Record<string, number> = {};
@@ -816,12 +798,18 @@ export default function Dashboard() {
                       </span>
                     </p>
                   )}
-                  {cacheInfo?.debug && (
+                  {cacheInfo && (
                     <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                      <p><strong>Debug:</strong></p>
-                      <p>Environment: {cacheInfo.debug.environment}</p>
-                      <p>Time since last fetch: {cacheInfo.debug.timeSinceLastFetch}s</p>
-                      <p>Cache duration: {cacheInfo.debug.cacheDuration}s</p>
+                      <p><strong>Debug Info:</strong></p>
+                      <p>Cache Source: {cacheInfo.cacheSource || 'unknown'}</p>
+                      <p>Cached: {cacheInfo.cached ? 'Yes' : 'No'}</p>
+                      {cacheInfo.debug && (
+                        <>
+                          <p>Environment: {cacheInfo.debug.environment || 'unknown'}</p>
+                          <p>Time since last fetch: {cacheInfo.debug.timeSinceLastFetch || 'unknown'}s</p>
+                          <p>Cache duration: {cacheInfo.debug.cacheDuration || 'unknown'}s</p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

@@ -13,8 +13,6 @@ export async function GET() {
   const now = Date.now();
   const timeSinceLastFetch = cachedData ? now - lastFetchTime : 0;
   
-  console.log(`API Request - Time since last fetch: ${Math.round(timeSinceLastFetch / 1000)}s, Cache duration: ${CACHE_DURATION / 1000}s`);
-  
   // Check if we have cached data and it's still fresh (within 3 minutes)
   if (cachedData && timeSinceLastFetch < CACHE_DURATION) {
     console.log('Serving cached emergency data from memory');
@@ -64,8 +62,12 @@ export async function GET() {
       throw new Error('Invalid API response structure');
     }
 
-    // Update cache
-    cachedData = data;
+    // Update cache (store only the core data, not the cache metadata)
+    cachedData = {
+      success: data.success,
+      count: data.count,
+      data: data.data
+    };
     lastFetchTime = now;
 
     console.log(`Successfully fetched ${data.count} emergency records`);
