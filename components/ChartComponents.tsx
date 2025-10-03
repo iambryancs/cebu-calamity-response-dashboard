@@ -46,8 +46,8 @@ export function BarChart({ data, title }: ChartProps) {
     ...data,
     datasets: data.datasets.map(dataset => ({
       ...dataset,
-      backgroundColor: dataset.backgroundColor || colors.primary,
-      borderColor: dataset.borderColor || colors.primaryBorder,
+      backgroundColor: dataset.backgroundColor || [colors.primary],
+      borderColor: dataset.borderColor || [colors.primaryBorder],
       borderWidth: dataset.borderWidth || 1,
     })),
   };
