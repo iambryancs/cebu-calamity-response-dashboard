@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { EmergencyResponse, DashboardStats, ChartData } from '@/types/emergency';
 import { BarChart, DoughnutChart, PieChart } from '@/components/ChartComponents';
+import { trackEmergencyEvent } from '@/utils/analytics';
 
 export default function Dashboard() {
   const [data, setData] = useState<EmergencyResponse | null>(null);
@@ -58,6 +59,13 @@ export default function Dashboard() {
         cacheSource: emergencyData.cacheSource,
         debug: emergencyData.debug
       });
+      
+      // Track data refresh
+      trackEmergencyEvent.dataRefresh(
+        vercelCacheStatus === 'HIT' ? 'cdn' : emergencyData.cacheSource || 'api',
+        emergencyData.count
+      );
+      
       setLoading(false);
     } catch (err) {
       console.error('Error loading data:', err);
@@ -227,16 +235,28 @@ export default function Dashboard() {
     setCurrentPage(page);
     // Scroll to top of table when changing pages
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Track pagination
+    trackEmergencyEvent.changePage(page);
   };
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     setCurrentPage(1); // Reset to first page when searching
+    
+    // Track search if query is not empty
+    if (query.trim()) {
+      const filteredResults = filterAndSortData(data?.data || []);
+      trackEmergencyEvent.search(query, filteredResults.length);
+    }
   };
 
   const handleRowClick = (emergency: EmergencyResponse['data'][0]) => {
     setSelectedEmergency(emergency);
     setShowModal(true);
+    
+    // Track emergency details view
+    trackEmergencyEvent.viewEmergencyDetails(emergency.id, emergency.urgencyLevel);
   };
 
   const closeModal = () => {
@@ -326,7 +346,21 @@ export default function Dashboard() {
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-8 text-center">
           <h1 className="text-4xl font-light mb-2">🚨 Cebu Emergency Relief Dashboard</h1>
-          <p className="text-xl opacity-90">Statistical analysis of emergency relief data</p>
+            <p className="text-xl opacity-90">
+              Statistical analysis of emergency relief data built on top of the excellent project - 
+              <a 
+                href="https://cebu-calamity-response.vercel.app/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center ml-2 px-3 py-1 bg-white bg-opacity-20 rounded-full hover:bg-opacity-30 transition-all duration-200 border border-white border-opacity-30"
+              >
+                <span className="mr-2">🔗</span>
+                Cebu Calamity Response
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </p>
           
           {/* Cache Status Indicator */}
           {cacheInfo && (
