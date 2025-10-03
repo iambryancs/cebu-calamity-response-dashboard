@@ -10,8 +10,27 @@ let cachedData: EmergencyResponse | null = null;
 let lastFetchTime: number = 0;
 let lastSuccessfulFetchTime: number = 0;
 let isRetryingUpstream: boolean = false;
-const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes in milliseconds
-const RETRY_INTERVAL = 30 * 1000; // Retry upstream API every 30 seconds when it's down
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const RETRY_INTERVAL = 5 * 60 * 1000; // Retry upstream API every 5 minutes when it's down (since API can take 267s+)
+
+// Function to update blob storage with fresh data
+async function updateBlobStorage(data: EmergencyResponse): Promise<void> {
+  try {
+    console.log('📝 Updating blob storage with fresh emergency data...');
+    const jsonData = JSON.stringify(data, null, 2);
+    
+    await vercelBlob.put('emergencies.json', jsonData, {
+      access: 'public',
+      contentType: 'application/json',
+      allowOverwrite: true,
+    });
+    
+    console.log(`✅ Successfully updated blob storage with ${data.count} emergency records`);
+  } catch (error) {
+    console.error('❌ Error updating blob storage:', error);
+    // Don't throw error - blob update failure shouldn't break the main flow
+  }
+}
 
 // Function to fetch emergency data from Vercel Blob storage
 async function fetchFromBlobStorage(): Promise<EmergencyResponse> {
@@ -49,14 +68,20 @@ async function fetchFromBlobStorage(): Promise<EmergencyResponse> {
 
 // Function to fetch from upstream API
 async function fetchFromUpstreamAPI(): Promise<EmergencyResponse> {
+  const startTime = Date.now();
+  console.log('🚀 Starting upstream API fetch (timeout: 5 minutes)...');
+  
   const response = await fetch('https://calamity-response-app.onrender.com/api/emergencies', {
     method: 'GET',
     headers: {
       'Accept': 'application/json',
       'User-Agent': 'Emergency-Dashboard/1.0'
     },
-    signal: AbortSignal.timeout(60000) // 60 second timeout (increased from 30s)
+    signal: AbortSignal.timeout(300000) // 300 second timeout (5 minutes) to handle 267s+ responses
   });
+
+  const fetchTime = Date.now() - startTime;
+  console.log(`⏱️ Upstream API fetch completed in ${Math.round(fetchTime / 1000)}s`);
 
   if (!response.ok) {
     throw new Error(`API responded with status: ${response.status}`);
@@ -68,17 +93,19 @@ async function fetchFromUpstreamAPI(): Promise<EmergencyResponse> {
     throw new Error('Invalid API response structure');
   }
 
+  console.log(`✅ Upstream API returned ${data.count} emergency records`);
   return data;
 }
 
 // Background retry function for upstream API
 async function retryUpstreamAPI() {
   if (isRetryingUpstream) {
+    console.log('⏳ Background retry already in progress, skipping...');
     return; // Already retrying
   }
 
   isRetryingUpstream = true;
-  console.log('Starting background retry of upstream API...');
+  console.log('🔄 Starting background retry of upstream API (this may take up to 5 minutes)...');
 
   try {
     const data = await fetchFromUpstreamAPI();
@@ -93,9 +120,13 @@ async function retryUpstreamAPI() {
     lastSuccessfulFetchTime = lastFetchTime;
     
     console.log(`✅ Background retry successful! Updated cache with ${data.count} emergency records from upstream API`);
+    
+    // Update blob storage with fresh data
+    await updateBlobStorage(data);
+    
     isRetryingUpstream = false;
   } catch (error) {
-    console.log('❌ Background retry failed, will retry again later:', error instanceof Error ? error.message : 'Unknown error');
+    console.log('❌ Background retry failed, will retry again in 5 minutes:', error instanceof Error ? error.message : 'Unknown error');
     isRetryingUpstream = false;
     
     // Schedule another retry
@@ -153,7 +184,7 @@ export async function GET() {
     lastFetchTime = now;
     
     // Start background fetch from upstream API
-    console.log('Starting background fetch from upstream API...');
+    console.log('🔄 Starting background fetch from upstream API (may take up to 5 minutes)...');
     setTimeout(async () => {
       try {
         const apiData = await fetchFromUpstreamAPI();
@@ -169,10 +200,15 @@ export async function GET() {
         lastSuccessfulFetchTime = lastFetchTime;
         
         console.log(`✅ Cache updated with ${apiData.count} emergency records from upstream API`);
+        
+        // Update blob storage with fresh data
+        await updateBlobStorage(apiData);
       } catch (error) {
         console.log('❌ Background API fetch failed, keeping blob data:', error instanceof Error ? error.message : 'Unknown error');
+        // Schedule retry for later
+        setTimeout(retryUpstreamAPI, RETRY_INTERVAL);
       }
-    }, 1000); // Start background fetch after 1 second
+    }, 2000); // Start background fetch after 2 seconds
 
     return NextResponse.json({
       ...blobData,
@@ -212,6 +248,9 @@ export async function GET() {
       lastSuccessfulFetchTime = now;
 
       console.log(`Successfully fetched ${data.count} emergency records`);
+
+      // Update blob storage with fresh data
+      await updateBlobStorage(data);
 
       return NextResponse.json({
         ...data,
