@@ -61,10 +61,10 @@ export default function Dashboard() {
       });
       
       // Track data refresh
-      trackEmergencyEvent.dataRefresh(
-        vercelCacheStatus === 'HIT' ? 'cdn' : emergencyData.cacheSource || 'api',
-        emergencyData.count
-      );
+      const dataSource = vercelCacheStatus === 'HIT' ? 'cdn' : 
+                        emergencyData.cacheSource === 'blob-fallback' ? 'blob-storage' :
+                        emergencyData.cacheSource || 'api';
+      trackEmergencyEvent.dataRefresh(dataSource, emergencyData.count);
       
       setLoading(false);
     } catch (err) {
@@ -393,6 +393,7 @@ export default function Dashboard() {
                     </svg>
                     {cacheInfo?.cacheSource === 'cdn' ? 'CDN Cached data' : 
                      cacheInfo?.cacheSource === 'memory' ? 'Memory cached data' : 
+                     cacheInfo?.cacheSource === 'blob-fallback' ? 'Backup data from storage' :
                      'Live data from API'}
                   </>
                 )}
