@@ -177,8 +177,8 @@ export default function Dashboard() {
 
       switch (sortField) {
         case 'urgencyLevel':
-          // Custom order: HIGH > MEDIUM > LOW
-          const urgencyOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+          // Custom order: CRITICAL > HIGH > MEDIUM > LOW
+          const urgencyOrder = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
           aValue = urgencyOrder[a.urgencyLevel as keyof typeof urgencyOrder] || 0;
           bValue = urgencyOrder[b.urgencyLevel as keyof typeof urgencyOrder] || 0;
           break;
@@ -639,6 +639,7 @@ export default function Dashboard() {
                   ) : (
                     getPaginatedData(data.data).data.map((emergency, index) => {
                     const urgencyColor = {
+                      'CRITICAL': 'bg-red-200 text-red-900 border-red-300 font-bold',
                       'HIGH': 'bg-red-100 text-red-800 border-red-200',
                       'MEDIUM': 'bg-yellow-100 text-yellow-800 border-yellow-200',
                       'LOW': 'bg-green-100 text-green-800 border-green-200'
@@ -937,6 +938,7 @@ export default function Dashboard() {
                   <div className="flex-1">
                     <h4 className="text-sm font-medium text-gray-900 mb-1">⚡ Urgency Level</h4>
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
+                      selectedEmergency.urgencyLevel === 'CRITICAL' ? 'bg-red-200 text-red-900 border-red-300 font-bold' :
                       selectedEmergency.urgencyLevel === 'HIGH' ? 'bg-red-100 text-red-800 border-red-200' :
                       selectedEmergency.urgencyLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
                       'bg-green-100 text-green-800 border-green-200'

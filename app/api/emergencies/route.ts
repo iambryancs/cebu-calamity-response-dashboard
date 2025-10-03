@@ -69,7 +69,7 @@ async function fetchFromBlobStorage(): Promise<EmergencyResponse> {
 // Function to fetch from upstream API
 async function fetchFromUpstreamAPI(): Promise<EmergencyResponse> {
   const startTime = Date.now();
-  console.log('🚀 Starting upstream API fetch (timeout: 5 minutes)...');
+  console.log('🚀 Starting upstream API fetch (timeout: 30 seconds)...');
   
   const response = await fetch('https://calamity-response-app.onrender.com/api/emergencies', {
     method: 'GET',
@@ -77,7 +77,7 @@ async function fetchFromUpstreamAPI(): Promise<EmergencyResponse> {
       'Accept': 'application/json',
       'User-Agent': 'Emergency-Dashboard/1.0'
     },
-    signal: AbortSignal.timeout(300000) // 300 second timeout (5 minutes) to handle 267s+ responses
+    signal: AbortSignal.timeout(30000) // 30 second timeout
   });
 
   const fetchTime = Date.now() - startTime;
@@ -105,7 +105,7 @@ async function retryUpstreamAPI() {
   }
 
   isRetryingUpstream = true;
-  console.log('🔄 Starting background retry of upstream API (this may take up to 5 minutes)...');
+  console.log('🔄 Starting background retry of upstream API (this may take up to 30 seconds)...');
 
   try {
     const data = await fetchFromUpstreamAPI();
@@ -164,52 +164,31 @@ export async function GET() {
     });
   }
 
-  // No fresh cache, try to get data from blob storage first (fast response)
+  // No fresh cache, try upstream API first, then blob storage as fallback
   try {
-    console.log('Fetching emergency data from Vercel Blob storage (fast response)');
-    const blobData = await fetchFromBlobStorage();
+    console.log('Fetching fresh emergency data from upstream API');
+    const data = await fetchFromUpstreamAPI();
     
-    // Update cache with blob data
+    // Update cache with fresh data from API
     cachedData = {
-      success: blobData.success,
-      count: blobData.count,
-      data: blobData.data
+      success: data.success,
+      count: data.count,
+      data: data.data
     };
     lastFetchTime = now;
-    
-    // Start background fetch from upstream API
-    console.log('🔄 Starting background fetch from upstream API (may take up to 5 minutes)...');
-    setTimeout(async () => {
-      try {
-        const apiData = await fetchFromUpstreamAPI();
-        console.log('✅ Background API fetch successful! Updating cache...');
-        
-        // Update cache with fresh API data
-        cachedData = {
-          success: apiData.success,
-          count: apiData.count,
-          data: apiData.data
-        };
-        lastFetchTime = Date.now();
-        lastSuccessfulFetchTime = lastFetchTime;
-        
-        console.log(`✅ Cache updated with ${apiData.count} emergency records from upstream API`);
-        
-        // Update blob storage with fresh data
-        await updateBlobStorage(apiData);
-      } catch (error) {
-        console.log('❌ Background API fetch failed, keeping blob data:', error instanceof Error ? error.message : 'Unknown error');
-        // Schedule retry for later
-        setTimeout(retryUpstreamAPI, RETRY_INTERVAL);
-      }
-    }, 2000); // Start background fetch after 2 seconds
+    lastSuccessfulFetchTime = now;
 
+    console.log(`Successfully fetched ${data.count} emergency records from API`);
+
+    // Update blob storage with fresh data
+    await updateBlobStorage(data);
+    
     return NextResponse.json({
-      ...blobData,
+      ...data,
       cached: false,
       lastUpdated: new Date(lastFetchTime).toISOString(),
       nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
-      cacheSource: 'blob-primary',
+      cacheSource: 'api',
     }, {
       headers: {
         'Cache-Control': 'public, max-age=180, s-maxage=180',
@@ -219,54 +198,46 @@ export async function GET() {
       }
     });
 
-  } catch (blobError) {
-    console.error('Error fetching from blob storage:', blobError);
+  } catch (apiError) {
+    console.error('Error fetching emergency data from API:', apiError);
     
-    // Blob storage failed, try upstream API directly
+    // API failed, try blob storage as fallback
     try {
-      console.log('Fetching fresh emergency data from API (fallback)');
-      const data = await fetchFromUpstreamAPI();
-
-      // Update cache with fresh data
+      console.log('Fetching emergency data from Vercel Blob storage (fallback)');
+      const blobData = await fetchFromBlobStorage();
+      
+      // Update cache with blob data
       cachedData = {
-        success: data.success,
-        count: data.count,
-        data: data.data
+        success: blobData.success,
+        count: blobData.count,
+        data: blobData.data
       };
       lastFetchTime = now;
-      lastSuccessfulFetchTime = now;
-
-      console.log(`Successfully fetched ${data.count} emergency records`);
-
-      // Update blob storage with fresh data
-      await updateBlobStorage(data);
+      
+      // Start background retry of upstream API
+      setTimeout(retryUpstreamAPI, RETRY_INTERVAL);
 
       return NextResponse.json({
-        ...data,
+        ...blobData,
         cached: false,
         lastUpdated: new Date(lastFetchTime).toISOString(),
         nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
-        cacheSource: 'api-fallback',
-        debug: {
-          timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000),
-          cacheDuration: CACHE_DURATION / 1000,
-          environment: process.env.VERCEL ? 'production' : 'development'
-        }
+        cacheSource: 'blob-fallback',
       }, {
         headers: {
           'Cache-Control': 'public, max-age=180, s-maxage=180',
           'CDN-Cache-Control': 'max-age=180',
           'Vercel-CDN-Cache-Control': 'max-age=180',
-          'X-Cache-Status': 'MISS',
+          'X-Cache-Status': 'BLOB-FALLBACK'
         }
       });
-
-    } catch (apiError) {
-      console.error('Error fetching emergency data from API:', apiError);
+      
+    } catch (blobError) {
+      console.error('Error fetching from blob storage:', blobError);
       
       // If we have stale cached data, serve that
       if (cachedData) {
-        console.log('Serving stale cached data due to API and blob errors');
+        console.log('Serving stale cached data due to API and blob storage errors');
         return NextResponse.json({
           ...cachedData,
           cached: true,

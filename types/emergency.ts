@@ -8,7 +8,7 @@ export interface Emergency {
   timestamp: string;
   needs: string[];
   numberOfPeople: number;
-  urgencyLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  urgencyLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   additionalNotes: string;
   status: 'pending' | 'resolved' | 'in-progress' | 'cancelled';
   createdAt: string;
