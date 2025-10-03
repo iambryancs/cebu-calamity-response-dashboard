@@ -32,7 +32,8 @@ export async function GET() {
         'Cache-Control': 'public, max-age=180, s-maxage=180',
         'CDN-Cache-Control': 'max-age=180',
         'Vercel-CDN-Cache-Control': 'max-age=180',
-        'X-Cache-Status': 'HIT'
+        'X-Cache-Status': 'HIT',
+        'X-Debug-Info': 'memory-cached'
       }
     });
   }
@@ -88,7 +89,8 @@ export async function GET() {
         'Cache-Control': 'public, max-age=180, s-maxage=180',
         'CDN-Cache-Control': 'max-age=180',
         'Vercel-CDN-Cache-Control': 'max-age=180',
-        'X-Cache-Status': 'MISS'
+        'X-Cache-Status': 'MISS',
+        'X-Debug-Info': 'fresh-api-call'
       }
     });
 
