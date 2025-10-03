@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply bg-white rounded-2xl p-6 shadow-lg border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+  
+  .stat-item {
+    @apply flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0;
+  }
+  
+  .stat-label {
+    @apply font-medium text-gray-600;
+  }
+  
+  .stat-value {
+    @apply font-bold text-gray-800 bg-gray-50 px-3 py-1 rounded-full text-sm;
+  }
+  
+  .summary-card {
+    @apply bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-5 rounded-2xl text-center shadow-lg;
+  }
+  
+  .summary-number {
+    @apply text-4xl font-bold mb-1;
+  }
+  
+  .summary-label {
+    @apply text-sm opacity-90;
+  }
+  
+  .word-item {
+    @apply bg-indigo-500 text-white px-4 py-2 rounded-full text-sm font-medium;
+  }
+  
+  .word-item:nth-child(1) { @apply bg-red-500 text-lg; }
+  .word-item:nth-child(2) { @apply bg-teal-500 text-base; }
+  .word-item:nth-child(3) { @apply bg-blue-500 text-base; }
+  .word-item:nth-child(4) { @apply bg-green-500 text-sm; }
+  .word-item:nth-child(5) { @apply bg-yellow-500 text-gray-800 text-sm; }
+}
