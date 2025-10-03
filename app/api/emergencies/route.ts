@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { EmergencyResponse } from '@/types/emergency';
 
+// Force dynamic rendering to ensure we can use caching headers
+export const dynamic = 'force-dynamic';
+
 // In-memory cache for API responses (works within the same function instance)
 let cachedData: EmergencyResponse | null = null;
 let lastFetchTime: number = 0;
@@ -8,21 +11,30 @@ const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes in milliseconds
 
 export async function GET() {
   const now = Date.now();
+  const timeSinceLastFetch = cachedData ? now - lastFetchTime : 0;
+  
+  console.log(`API Request - Time since last fetch: ${Math.round(timeSinceLastFetch / 1000)}s, Cache duration: ${CACHE_DURATION / 1000}s`);
   
   // Check if we have cached data and it's still fresh (within 3 minutes)
-  if (cachedData && (now - lastFetchTime) < CACHE_DURATION) {
+  if (cachedData && timeSinceLastFetch < CACHE_DURATION) {
     console.log('Serving cached emergency data from memory');
     return NextResponse.json({
       ...cachedData,
       cached: true,
       lastUpdated: new Date(lastFetchTime).toISOString(),
       nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
-      cacheSource: 'memory'
+      cacheSource: 'memory',
+      debug: {
+        timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000),
+        cacheDuration: CACHE_DURATION / 1000,
+        environment: process.env.VERCEL ? 'production' : 'development'
+      }
     }, {
       headers: {
         'Cache-Control': 'public, max-age=180, s-maxage=180',
         'CDN-Cache-Control': 'max-age=180',
-        'Vercel-CDN-Cache-Control': 'max-age=180'
+        'Vercel-CDN-Cache-Control': 'max-age=180',
+        'X-Cache-Status': 'HIT'
       }
     });
   }
@@ -63,12 +75,18 @@ export async function GET() {
       cached: false,
       lastUpdated: new Date(lastFetchTime).toISOString(),
       nextUpdate: new Date(lastFetchTime + CACHE_DURATION).toISOString(),
-      cacheSource: 'api'
+      cacheSource: 'api',
+      debug: {
+        timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000),
+        cacheDuration: CACHE_DURATION / 1000,
+        environment: process.env.VERCEL ? 'production' : 'development'
+      }
     }, {
       headers: {
         'Cache-Control': 'public, max-age=180, s-maxage=180',
         'CDN-Cache-Control': 'max-age=180',
-        'Vercel-CDN-Cache-Control': 'max-age=180'
+        'Vercel-CDN-Cache-Control': 'max-age=180',
+        'X-Cache-Status': 'MISS'
       }
     });
 

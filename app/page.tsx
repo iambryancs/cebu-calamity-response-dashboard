@@ -14,7 +14,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyResponse['data'][0] | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
-  const [cacheInfo, setCacheInfo] = useState<{cached?: boolean, stale?: boolean, lastUpdated?: string, nextUpdate?: string, cacheSource?: string} | null>(null);
+  const [cacheInfo, setCacheInfo] = useState<{cached?: boolean, stale?: boolean, lastUpdated?: string, nextUpdate?: string, cacheSource?: string, debug?: any} | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 100;
 
@@ -815,6 +815,14 @@ export default function Dashboard() {
                         {new Date(cacheInfo.nextUpdate).toLocaleString()}
                       </span>
                     </p>
+                  )}
+                  {cacheInfo?.debug && (
+                    <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                      <p><strong>Debug:</strong></p>
+                      <p>Environment: {cacheInfo.debug.environment}</p>
+                      <p>Time since last fetch: {cacheInfo.debug.timeSinceLastFetch}s</p>
+                      <p>Cache duration: {cacheInfo.debug.cacheDuration}s</p>
+                    </div>
                   )}
                 </div>
               </div>
