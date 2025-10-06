@@ -33,35 +33,19 @@ export default function Dashboard() {
 
   const loadReliefActions = async (): Promise<ReliefActionsResponse | null> => {
     try {
-      console.log('🔄 Loading relief actions data...');
       const response = await fetch('/api/relief-actions');
       if (!response.ok) {
-        console.warn('❌ Failed to load relief actions data:', response.status, response.statusText);
         return null;
       }
       const reliefData: ReliefActionsResponse = await response.json();
       
       if (reliefData.success && reliefData.data) {
         setReliefActions(reliefData);
-        console.log(`✅ Successfully loaded ${reliefData.count} relief actions`);
-        
-        // Show sample relief actions for debugging
-        if (reliefData.data.length > 0) {
-          console.log('🎁 Sample relief actions:');
-          reliefData.data.slice(0, 3).forEach(action => {
-            console.log(`   • ${action.DonorName} (${action.DonorType}) - ${action.DonatedItems.join(', ')} at ${action.LocationLat}, ${action.LocationLong}`);
-          });
-          if (reliefData.data.length > 3) {
-            console.log(`   ... and ${reliefData.data.length - 3} more relief actions`);
-          }
-        }
         return reliefData;
       } else {
-        console.warn('⚠️ Relief actions data format is invalid:', reliefData);
         return null;
       }
     } catch (err) {
-      console.warn('❌ Error loading relief actions:', err);
       return null;
     }
   };
@@ -118,12 +102,8 @@ export default function Dashboard() {
 
   const enrichWithReliefActions = async (emergencyData: EmergencyResponse, reliefActionsData: ReliefActionsResponse | null): Promise<EmergencyResponse> => {
     if (!reliefActionsData || !reliefActionsData.data || reliefActionsData.data.length === 0) {
-      console.log('⚠️ No relief actions data available for geospatial matching');
       return emergencyData;
     }
-
-    console.log('🔍 Applying geospatial matching between emergencies and relief actions...');
-    console.log(`📊 Input data: ${emergencyData.data.length} emergencies, ${reliefActionsData.data.length} relief actions`);
     
     const enrichedData = emergencyData.data.map(emergency => {
       const closestRelief = findClosestReliefAction(
@@ -134,10 +114,6 @@ export default function Dashboard() {
       );
 
       if (closestRelief) {
-        const distanceText = closestRelief.distance < 1 
-          ? `${(closestRelief.distance * 1000).toFixed(0)}m away`
-          : `${closestRelief.distance.toFixed(2)}km away`;
-        console.log(`📍 MATCH: Emergency ${emergency.id} (${emergency.placename}) matched with relief action ${closestRelief.reliefAction.DonationID} by ${closestRelief.reliefAction.DonorName} (${distanceText})`);
         return {
           ...emergency,
           hasReliefAction: true,
@@ -151,30 +127,6 @@ export default function Dashboard() {
         hasReliefAction: false
       };
     });
-
-    const matchedCount = enrichedData.filter(e => e.hasReliefAction).length;
-    const unmatchedCount = enrichedData.length - matchedCount;
-    
-    console.log('📈 Geospatial Matching Results:');
-    console.log(`   ✅ Matched emergencies: ${matchedCount}/${enrichedData.length} (${((matchedCount/enrichedData.length)*100).toFixed(1)}%)`);
-    console.log(`   ❌ Unmatched emergencies: ${unmatchedCount}/${enrichedData.length} (${((unmatchedCount/enrichedData.length)*100).toFixed(1)}%)`);
-    console.log(`   🎯 Relief actions available: ${reliefActionsData.data.length}`);
-    console.log(`   📏 Search radius: 200m`);
-
-    // Show some examples of matches
-    const matches = enrichedData.filter(e => e.hasReliefAction);
-    if (matches.length > 0) {
-      console.log('🎁 Sample matches:');
-      matches.slice(0, 3).forEach(match => {
-        const distanceText = match.reliefActionDistance && match.reliefActionDistance < 1 
-          ? `${(match.reliefActionDistance * 1000).toFixed(0)}m`
-          : `${match.reliefActionDistance?.toFixed(2)}km`;
-        console.log(`   • ${match.placename} ↔ ${match.reliefActionDetails?.DonorName} (${distanceText})`);
-      });
-      if (matches.length > 3) {
-        console.log(`   ... and ${matches.length - 3} more matches`);
-      }
-    }
 
     return {
       ...emergencyData,

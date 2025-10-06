@@ -99,12 +99,6 @@ export function findClosestReliefAction(
     }
   }
 
-  // Debug logging for troubleshooting
-  if (validReliefActions === 0) {
-    console.warn(`⚠️ No valid relief action coordinates found (${invalidCoordinates} invalid coordinates)`);
-  } else if (!closestReliefAction) {
-    console.log(`🔍 Emergency at (${emergencyLat}, ${emergencyLon}) - checked ${validReliefActions} relief actions, none within ${maxDistance}km`);
-  }
 
   return closestReliefAction ? { reliefAction: closestReliefAction, distance: minDistance } : null;
 }

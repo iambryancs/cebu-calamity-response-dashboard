@@ -17,9 +17,6 @@ async function fetchReliefActionsFromAPI(): Promise<ReliefActionsResponse> {
     throw new Error('RELIEF_ACTIONS_API environment variable is not set');
   }
 
-  console.log('🚀 Fetching relief actions from upstream API...');
-  console.log(`📍 API URL: ${reliefActionsApiUrl}`);
-  
   const response = await fetch(reliefActionsApiUrl, {
     method: 'GET',
     headers: {
@@ -30,28 +27,13 @@ async function fetchReliefActionsFromAPI(): Promise<ReliefActionsResponse> {
   });
 
   if (!response.ok) {
-    console.error(`❌ Relief actions API error: ${response.status} ${response.statusText}`);
     throw new Error(`Relief actions API responded with status: ${response.status}`);
   }
 
   const data: ReliefActionsResponse = await response.json();
   
   if (!data.success || !data.data || !Array.isArray(data.data)) {
-    console.error('❌ Invalid relief actions API response structure:', data);
     throw new Error('Invalid relief actions API response structure');
-  }
-
-  console.log(`✅ Relief actions API returned ${data.count} records`);
-  
-  // Debug: Show sample of relief actions data
-  if (data.data.length > 0) {
-    console.log('🔍 Sample relief action data:');
-    const sample = data.data[0];
-    console.log(`   • DonationID: ${sample.DonationID}`);
-    console.log(`   • Donor: ${sample.DonorName} (${sample.DonorType})`);
-    console.log(`   • Location: ${sample.LocationLat}, ${sample.LocationLong}`);
-    console.log(`   • Items: ${sample.DonatedItems.join(', ')}`);
-    console.log(`   • Status: ${sample.Status}`);
   }
   
   return data;
@@ -63,7 +45,6 @@ export async function GET() {
   
   // Check if we have cached data and it's still fresh
   if (cachedReliefData && timeSinceLastFetch < CACHE_DURATION) {
-    console.log('Serving cached relief actions data from memory');
     return NextResponse.json({
       ...cachedReliefData,
       cached: true,
@@ -82,14 +63,11 @@ export async function GET() {
 
   // Fetch fresh data from API
   try {
-    console.log('Fetching fresh relief actions data from upstream API');
     const data = await fetchReliefActionsFromAPI();
     
     // Update cache
     cachedReliefData = data;
     lastFetchTime = now;
-
-    console.log(`Successfully fetched ${data.count} relief action records from API`);
     
     return NextResponse.json({
       ...data,
@@ -107,11 +85,8 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error fetching relief actions data:', error);
-    
     // If we have stale cached data, serve that
     if (cachedReliefData) {
-      console.log('Serving stale cached relief actions data due to API error');
       return NextResponse.json({
         ...cachedReliefData,
         cached: true,
