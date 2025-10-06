@@ -13,6 +13,23 @@ let isRetryingUpstream: boolean = false;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 const RETRY_INTERVAL = 5 * 60 * 1000; // Retry upstream API every 5 minutes when it's down (since API can take 267s+)
 
+// Function to filter out emergency records with invalid numberOfPeople (> 3000)
+function filterValidEmergencies(data: EmergencyResponse): EmergencyResponse {
+  const originalCount = data.count;
+  const filteredData = data.data.filter(emergency => emergency.numberOfPeople <= 3000);
+  const filteredCount = filteredData.length;
+  
+  if (originalCount !== filteredCount) {
+    console.log(`🔍 Filtered out ${originalCount - filteredCount} emergency records with numberOfPeople > 3000`);
+  }
+  
+  return {
+    ...data,
+    data: filteredData,
+    count: filteredCount
+  };
+}
+
 // Function to update blob storage with fresh data
 async function updateBlobStorage(data: EmergencyResponse): Promise<void> {
   try {
@@ -58,8 +75,11 @@ async function fetchFromBlobStorage(): Promise<EmergencyResponse> {
       throw new Error('Invalid data structure in blob storage');
     }
     
-    console.log(`Successfully loaded ${emergencyData.count} emergency records from blob storage`);
-    return emergencyData;
+    // Filter out records with invalid numberOfPeople (> 3000)
+    const filteredData = filterValidEmergencies(emergencyData);
+    
+    console.log(`Successfully loaded ${emergencyData.count} emergency records from blob storage (${filteredData.count} after filtering)`);
+    return filteredData;
   } catch (error) {
     console.error('Error fetching from blob storage:', error);
     throw new Error('Failed to load emergency data from blob storage');
@@ -69,9 +89,15 @@ async function fetchFromBlobStorage(): Promise<EmergencyResponse> {
 // Function to fetch from upstream API
 async function fetchFromUpstreamAPI(): Promise<EmergencyResponse> {
   const startTime = Date.now();
+  const emergenciesApiUrl = process.env.VICTIM_REPORTS_API;
+
+  if (!emergenciesApiUrl) {
+    throw new Error('VICTIM_REPORTS_API environment variable is not set');
+  }
+
   console.log('🚀 Starting upstream API fetch (timeout: 30 seconds)...');
   
-  const response = await fetch('https://calamity-response-app.onrender.com/api/emergencies', {
+  const response = await fetch(emergenciesApiUrl, {
     method: 'GET',
     headers: {
       'Accept': 'application/json',
@@ -93,8 +119,11 @@ async function fetchFromUpstreamAPI(): Promise<EmergencyResponse> {
     throw new Error('Invalid API response structure');
   }
 
-  console.log(`✅ Upstream API returned ${data.count} emergency records`);
-  return data;
+  // Filter out records with invalid numberOfPeople (> 3000)
+  const filteredData = filterValidEmergencies(data);
+  
+  console.log(`✅ Upstream API returned ${data.count} emergency records (${filteredData.count} after filtering)`);
+  return filteredData;
 }
 
 // Background retry function for upstream API

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { EmergencyResponse, DashboardStats, ChartData } from '@/types/emergency';
+import { EmergencyResponse, DashboardStats, ChartData, ReliefActionsResponse } from '@/types/emergency';
 import { BarChart, DoughnutChart, PieChart } from '@/components/ChartComponents';
 import { trackEmergencyEvent } from '@/utils/analytics';
+import { findClosestReliefAction } from '@/utils/geospatial';
 
 export default function Dashboard() {
   const [data, setData] = useState<EmergencyResponse | null>(null);
@@ -17,13 +18,55 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [cacheInfo, setCacheInfo] = useState<{cached?: boolean, stale?: boolean, lastUpdated?: string, nextUpdate?: string, cacheSource?: string} | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [reliefActions, setReliefActions] = useState<ReliefActionsResponse | null>(null);
   const itemsPerPage = 100;
 
   useEffect(() => {
-    loadEmergencyData();
+    loadData();
   }, []);
 
-  const loadEmergencyData = async () => {
+  const loadData = async () => {
+    // Load relief actions first, then emergency data with relief actions data
+    const reliefData = await loadReliefActions();
+    await loadEmergencyData(reliefData);
+  };
+
+  const loadReliefActions = async (): Promise<ReliefActionsResponse | null> => {
+    try {
+      console.log('🔄 Loading relief actions data...');
+      const response = await fetch('/api/relief-actions');
+      if (!response.ok) {
+        console.warn('❌ Failed to load relief actions data:', response.status, response.statusText);
+        return null;
+      }
+      const reliefData: ReliefActionsResponse = await response.json();
+      
+      if (reliefData.success && reliefData.data) {
+        setReliefActions(reliefData);
+        console.log(`✅ Successfully loaded ${reliefData.count} relief actions`);
+        
+        // Show sample relief actions for debugging
+        if (reliefData.data.length > 0) {
+          console.log('🎁 Sample relief actions:');
+          reliefData.data.slice(0, 3).forEach(action => {
+            console.log(`   • ${action.DonorName} (${action.DonorType}) - ${action.DonatedItems.join(', ')} at ${action.LocationLat}, ${action.LocationLong}`);
+          });
+          if (reliefData.data.length > 3) {
+            console.log(`   ... and ${reliefData.data.length - 3} more relief actions`);
+          }
+        }
+        return reliefData;
+      } else {
+        console.warn('⚠️ Relief actions data format is invalid:', reliefData);
+        return null;
+      }
+    } catch (err) {
+      console.warn('❌ Error loading relief actions:', err);
+      return null;
+    }
+  };
+
+  const loadEmergencyData = async (reliefActionsData: ReliefActionsResponse | null) => {
     try {
       const response = await fetch('/api/emergencies');
       if (!response.ok) {
@@ -45,8 +88,11 @@ export default function Dashboard() {
         throw new Error('Invalid data format');
       }
 
-      setData(emergencyData);
-      const calculatedStats = generateStatistics(emergencyData.data);
+      // Apply geospatial matching with relief actions
+      const enrichedData = await enrichWithReliefActions(emergencyData, reliefActionsData);
+
+      setData(enrichedData);
+      const calculatedStats = generateStatistics(enrichedData.data);
       setStats(calculatedStats);
       setCacheInfo({
         cached: emergencyData.cached,
@@ -68,6 +114,72 @@ export default function Dashboard() {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setLoading(false);
     }
+  };
+
+  const enrichWithReliefActions = async (emergencyData: EmergencyResponse, reliefActionsData: ReliefActionsResponse | null): Promise<EmergencyResponse> => {
+    if (!reliefActionsData || !reliefActionsData.data || reliefActionsData.data.length === 0) {
+      console.log('⚠️ No relief actions data available for geospatial matching');
+      return emergencyData;
+    }
+
+    console.log('🔍 Applying geospatial matching between emergencies and relief actions...');
+    console.log(`📊 Input data: ${emergencyData.data.length} emergencies, ${reliefActionsData.data.length} relief actions`);
+    
+    const enrichedData = emergencyData.data.map(emergency => {
+      const closestRelief = findClosestReliefAction(
+        emergency.latitude,
+        emergency.longitude,
+        reliefActionsData.data,
+        0.2 // 200m radius
+      );
+
+      if (closestRelief) {
+        const distanceText = closestRelief.distance < 1 
+          ? `${(closestRelief.distance * 1000).toFixed(0)}m away`
+          : `${closestRelief.distance.toFixed(2)}km away`;
+        console.log(`📍 MATCH: Emergency ${emergency.id} (${emergency.placename}) matched with relief action ${closestRelief.reliefAction.DonationID} by ${closestRelief.reliefAction.DonorName} (${distanceText})`);
+        return {
+          ...emergency,
+          hasReliefAction: true,
+          reliefActionDistance: closestRelief.distance,
+          reliefActionDetails: closestRelief.reliefAction
+        };
+      }
+
+      return {
+        ...emergency,
+        hasReliefAction: false
+      };
+    });
+
+    const matchedCount = enrichedData.filter(e => e.hasReliefAction).length;
+    const unmatchedCount = enrichedData.length - matchedCount;
+    
+    console.log('📈 Geospatial Matching Results:');
+    console.log(`   ✅ Matched emergencies: ${matchedCount}/${enrichedData.length} (${((matchedCount/enrichedData.length)*100).toFixed(1)}%)`);
+    console.log(`   ❌ Unmatched emergencies: ${unmatchedCount}/${enrichedData.length} (${((unmatchedCount/enrichedData.length)*100).toFixed(1)}%)`);
+    console.log(`   🎯 Relief actions available: ${reliefActionsData.data.length}`);
+    console.log(`   📏 Search radius: 200m`);
+
+    // Show some examples of matches
+    const matches = enrichedData.filter(e => e.hasReliefAction);
+    if (matches.length > 0) {
+      console.log('🎁 Sample matches:');
+      matches.slice(0, 3).forEach(match => {
+        const distanceText = match.reliefActionDistance && match.reliefActionDistance < 1 
+          ? `${(match.reliefActionDistance * 1000).toFixed(0)}m`
+          : `${match.reliefActionDistance?.toFixed(2)}km`;
+        console.log(`   • ${match.placename} ↔ ${match.reliefActionDetails?.DonorName} (${distanceText})`);
+      });
+      if (matches.length > 3) {
+        console.log(`   ... and ${matches.length - 3} more matches`);
+      }
+    }
+
+    return {
+      ...emergencyData,
+      data: enrichedData
+    };
   };
 
   const generateStatistics = (emergencyData: EmergencyResponse['data']): DashboardStats => {
@@ -113,16 +225,23 @@ export default function Dashboard() {
       .sort((a, b) => b[1] - a[1])
       .map(([label, value]) => ({ label, value }));
 
-    // Analyze status
+    // Analyze status (including relief available)
     const statusCount: Record<string, number> = {};
     emergencyData.forEach(item => {
-      if (item.status) {
+      if (item.hasReliefAction) {
+        // Count relief available as a separate category
+        statusCount['Relief Available'] = (statusCount['Relief Available'] || 0) + 1;
+      } else if (item.status) {
+        // Count original status for non-relief items
         statusCount[item.status] = (statusCount[item.status] || 0) + 1;
       }
     });
     const statusStats = Object.entries(statusCount)
       .sort((a, b) => b[1] - a[1])
-      .map(([label, value]) => ({ label: label.charAt(0).toUpperCase() + label.slice(1), value }));
+      .map(([label, value]) => ({ 
+        label: label === 'Relief Available' ? 'Relief Available' : label.charAt(0).toUpperCase() + label.slice(1), 
+        value 
+      }));
 
 
     return {
@@ -191,10 +310,21 @@ export default function Dashboard() {
           bValue = new Date(b.timestamp).getTime();
           break;
         case 'status':
-          // Custom order: pending > in-progress > resolved > cancelled
+          // Custom order: Relief Available > pending > in-progress > resolved > cancelled
           const statusOrder = { 'pending': 4, 'in-progress': 3, 'resolved': 2, 'cancelled': 1 };
-          aValue = statusOrder[a.status as keyof typeof statusOrder] || 0;
-          bValue = statusOrder[b.status as keyof typeof statusOrder] || 0;
+          
+          // If relief is available, give it highest priority (5)
+          if (a.hasReliefAction) {
+            aValue = 5;
+          } else {
+            aValue = statusOrder[a.status as keyof typeof statusOrder] || 0;
+          }
+          
+          if (b.hasReliefAction) {
+            bValue = 5;
+          } else {
+            bValue = statusOrder[b.status as keyof typeof statusOrder] || 0;
+          }
           break;
         default:
           return 0;
@@ -304,6 +434,43 @@ export default function Dashboard() {
           </span>
         ))}
       </div>
+    );
+  };
+
+  const formatEnhancedStatus = (emergency: EmergencyResponse['data'][0]) => {
+    // If there's a relief action match, show relief information
+    if (emergency.hasReliefAction && emergency.reliefActionDistance) {
+      const distanceText = emergency.reliefActionDistance < 1 
+        ? `${(emergency.reliefActionDistance * 1000).toFixed(0)}m away`
+        : `${emergency.reliefActionDistance.toFixed(1)}km away`;
+      
+      return (
+        <div className="flex flex-col space-y-1">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            Relief Available
+          </span>
+          <span className="text-xs text-gray-500">
+            {distanceText}
+          </span>
+        </div>
+      );
+    }
+
+    // Otherwise, show the original status with appropriate colors
+    const statusColor = {
+      'pending': 'bg-orange-100 text-orange-800 border-orange-200',
+      'in-progress': 'bg-blue-100 text-blue-800 border-blue-200',
+      'resolved': 'bg-green-100 text-green-800 border-green-200',
+      'cancelled': 'bg-gray-100 text-gray-800 border-gray-200'
+    }[emergency.status] || 'bg-gray-100 text-gray-800 border-gray-200';
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusColor}`}>
+        {emergency.status}
+      </span>
     );
   };
 
@@ -676,9 +843,7 @@ export default function Dashboard() {
                           <div className="text-sm text-gray-900">{formatTimestamp(emergency.timestamp)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusColor}`}>
-                            {emergency.status}
-                          </span>
+                          {formatEnhancedStatus(emergency)}
                         </td>
                       </tr>
                     );

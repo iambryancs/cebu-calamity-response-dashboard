@@ -13,6 +13,9 @@ export interface Emergency {
   status: 'pending' | 'resolved' | 'in-progress' | 'cancelled';
   createdAt: string;
   updatedAt: string;
+  hasReliefAction?: boolean;
+  reliefActionDistance?: number;
+  reliefActionDetails?: ReliefAction;
 }
 
 export interface EmergencyResponse {
@@ -51,4 +54,32 @@ export interface DashboardStats {
   needsStats: StatItem[];
   urgencyStats: StatItem[];
   statusStats: StatItem[];
+}
+
+export interface ReliefAction {
+  DonationID: number;
+  DonorName: string;
+  DonorType: string;
+  ContactNumber: string;
+  Email: string;
+  Address: string;
+  LocationLat: string;
+  LocationLong: string;
+  DonatedItems: string[];
+  DateDonated: string;
+  PicturePath: string | null;
+  PicturePath2: string | null;
+  AdditionalNotes: string;
+  Status: string;
+  IsVerified: number;
+  VerifiedBy: string | null;
+  VerifiedAt: string | null;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
+export interface ReliefActionsResponse {
+  success: boolean;
+  data: ReliefAction[];
+  count: number;
 }
