@@ -389,6 +389,26 @@ export default function Dashboard() {
     );
   };
 
+  const handleShareToFacebook = (emergency: EmergencyResponse['data'][0]) => {
+    // Create a shareable URL with emergency details
+    const shareUrl = `${window.location.origin}/share/emergency/${emergency.id}`;
+    
+    // Use Facebook's simple sharer - Facebook will pull content from Open Graph meta tags
+    const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    
+    // Open in a popup window
+    const popup = window.open(
+      facebookShareUrl,
+      'facebook-share-dialog',
+      'width=600,height=400,scrollbars=yes,resizable=yes'
+    );
+    
+    // Focus the popup window
+    if (popup) {
+      popup.focus();
+    }
+  };
+
   const formatEnhancedStatus = (emergency: EmergencyResponse['data'][0]) => {
     // If there's a relief action match, show relief information
     if (emergency.hasReliefAction && emergency.reliefActionDistance) {
@@ -1104,16 +1124,58 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1">
                     <h4 className="text-sm font-medium text-gray-900 mb-1">🚩 Current Status</h4>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
-                      selectedEmergency.status === 'pending' ? 'bg-orange-100 text-orange-800 border-orange-200' :
-                      selectedEmergency.status === 'in-progress' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                      selectedEmergency.status === 'resolved' ? 'bg-green-100 text-green-800 border-green-200' :
-                      'bg-gray-100 text-gray-800 border-gray-200'
-                    }`}>
-                      {selectedEmergency.status}
-                    </span>
+                    {formatEnhancedStatus(selectedEmergency)}
                   </div>
                 </div>
+
+                {/* Relief Action Details */}
+                {selectedEmergency.hasReliefAction && selectedEmergency.reliefActionDetails && (
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">🎁 Relief Action Details</h4>
+                      <div className="bg-green-50 rounded-lg p-4 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">Donor:</span>
+                          <span className="text-sm text-gray-900">{selectedEmergency.reliefActionDetails.DonorName}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">Type:</span>
+                          <span className="text-sm text-gray-900">{selectedEmergency.reliefActionDetails.DonorType}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">Items:</span>
+                          <span className="text-sm text-gray-900">{selectedEmergency.reliefActionDetails.DonatedItems.join(', ')}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">Status:</span>
+                          <span className="text-sm text-gray-900">{selectedEmergency.reliefActionDetails.Status}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">Distance:</span>
+                          <span className="text-sm text-gray-900">
+                            {selectedEmergency.reliefActionDistance && selectedEmergency.reliefActionDistance < 1 
+                              ? `${(selectedEmergency.reliefActionDistance * 1000).toFixed(0)}m away`
+                              : `${selectedEmergency.reliefActionDistance?.toFixed(1)}km away`
+                            }
+                          </span>
+                        </div>
+                        {selectedEmergency.reliefActionDetails.ContactNumber && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-700">Contact:</span>
+                            <span className="text-sm text-gray-900 font-mono">{selectedEmergency.reliefActionDetails.ContactNumber}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Timestamp */}
                 <div className="flex items-start space-x-3">
@@ -1153,7 +1215,16 @@ export default function Dashboard() {
               </div>
 
               {/* Modal Footer */}
-              <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end space-x-3">
+              <div className="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <button
+                  onClick={() => handleShareToFacebook(selectedEmergency)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                  Share to Facebook
+                </button>
                 <button
                   onClick={closeModal}
                   className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
