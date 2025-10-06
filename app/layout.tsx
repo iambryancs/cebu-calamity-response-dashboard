@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 import './globals.css';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 
+// Randomly select one of the share images for default metadata
+const shareImages = ['share_a.jpg', 'share_b.jpg', 'share_c.jpg', 'share_d.jpg', 'share_e.jpg'];
+const randomImage = shareImages[Math.floor(Math.random() * shareImages.length)];
+
 export const metadata: Metadata = {
   title: 'Cebu Emergency Relief Dashboard',
   description: 'Statistical analysis of emergency relief data',
@@ -14,7 +18,7 @@ export const metadata: Metadata = {
     description: 'Statistical analysis of emergency relief data',
     images: [
       {
-        url: '/og-image.png',
+        url: `/${randomImage}`,
         width: 1200,
         height: 630,
         alt: 'Cebu Emergency Relief Dashboard',
@@ -25,7 +29,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Cebu Emergency Relief Dashboard',
     description: 'Statistical analysis of emergency relief data',
-    images: ['/og-image.png'],
+    images: [`/${randomImage}`],
   },
 };
 

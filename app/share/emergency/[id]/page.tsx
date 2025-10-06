@@ -48,7 +48,10 @@ export async function generateMetadata({ params }: SharePageProps): Promise<Meta
     console.error('Error generating metadata:', error);
   }
   
-  // Fallback metadata
+  // Fallback metadata with random share image
+  const shareImages = ['share_a.jpg', 'share_b.jpg', 'share_c.jpg', 'share_d.jpg', 'share_e.jpg'];
+  const randomImage = shareImages[Math.floor(Math.random() * shareImages.length)];
+  
   return {
     title: 'Emergency Relief Request - Cebu Emergency Relief Dashboard',
     description: 'Help coordinate emergency relief efforts in Cebu. View emergency details and relief status.',
@@ -60,7 +63,7 @@ export async function generateMetadata({ params }: SharePageProps): Promise<Meta
       siteName: 'Cebu Emergency Relief Dashboard',
       images: [
         {
-          url: `${baseUrl}/og-image.png`,
+          url: `${baseUrl}/${randomImage}`,
           width: 1200,
           height: 630,
           alt: 'Cebu Emergency Relief Dashboard',
@@ -71,7 +74,7 @@ export async function generateMetadata({ params }: SharePageProps): Promise<Meta
       card: 'summary_large_image',
       title: 'Emergency Relief Request - Cebu Emergency Relief Dashboard',
       description: 'Help coordinate emergency relief efforts in Cebu. View emergency details and relief status.',
-      images: [`${baseUrl}/og-image.png`],
+      images: [`${baseUrl}/${randomImage}`],
     },
   };
 }

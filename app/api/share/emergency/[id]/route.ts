@@ -41,11 +41,15 @@ export async function GET(
     
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     
+    // Randomly select one of the share images
+    const shareImages = ['share_a.jpg', 'share_b.jpg', 'share_c.jpg', 'share_d.jpg', 'share_e.jpg'];
+    const randomImage = shareImages[Math.floor(Math.random() * shareImages.length)];
+    
     return NextResponse.json({
       title,
       description,
       url: `${baseUrl}/share/emergency/${params.id}`,
-      image: `${baseUrl}/og-image.png`,
+      image: `${baseUrl}/${randomImage}`,
       emergency
     });
     
